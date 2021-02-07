@@ -1,26 +1,29 @@
 
-"""Construct standard operand
+"""Construct standard operators.
 
-pos: + self
-neg: - self
-add: self + other
-sub: self - other
-radd: other + self
-rsub: other - self
-mul: self * other
-rmul: other * self
-truediv: self / other
-rtruediv: other / self
-pow: self**other
+TO-DO: self-defined pow
 """
-
+import math
 
 class Value:
+    """
+    pos: + self
+    neg: - self
+    add: self + other
+    sub: self - other
+    radd: other + self
+    rsub: other - self
+    mul: self * other
+    rmul: other * self
+    truediv: self / other
+    rtruediv: other / self
+    pow: self**other
+    """
     def __init__(self, data, _children=(), _op=''):
         self.data = data
         self.grad = 0
         self._backward = lambda: None
-        self._prev = set(_children)
+        self._prev = set(_children) # be created once building operation
 
     def __add__(self, other):
         other = other if isinstance(other, Value) else Value(other)
@@ -30,20 +33,30 @@ class Value:
             self.grad += out.grad
             other.grad += out.grad
         out._backward = _backward
+        
         return out
 
     def __mul__(self, other):
         other = other if isinstance(other, Value) else Value(other)
         out = Value(self.data*other.data, (self, other), '*')
+        
+        def _backward():
+            self.grad += other.data * out.grad
+            other.grad += self.data * out.grad
+        out._backward = _backward
+        
         return out
 
-    def __truediv__(self, other):
-        return self * other**-1
-
     def  __pow__(self, other):
+        # Use math.pow instead of recursively calling
         # assert isinstance(other, (int, float)), "Only int/float"
-        other = other if isinstance(other, Value) else Value(other)
-        out = Value(self.data**other.data, (self,), f'**{other}')
+        # other = other if isinstance(other, Value) else Value(other)
+        out = Value(self.data**other, (self,), f'**{other}')
+
+        def _backward():
+            self.grad += (other * self.data**(other-1)) * out.grad
+        out._backward = _backward
+        
         return out
 
     def backward(self):
@@ -52,11 +65,9 @@ class Value:
         topo = list()
         visited = set()
         def build_topo(v):
-            """"""
             # If not in `visited` 
             # otherwise add previous node to topo
-            print('check node', v)
-
+            # print('check node', v)
             if v not in visited:
                 visited.add(v)
                 for child in v._prev:
@@ -64,9 +75,9 @@ class Value:
                 topo.append(v)
         build_topo(self)
 
-        print('topo')
-        for n in topo:
-            print(n)
+        self.grad = 1
+        for v in reversed(topo):
+            v._backward()
 
     def __pos__(self): # + self
         return self
@@ -89,30 +100,14 @@ class Value:
     def __rmul__(self, other): # other * self
         return self * other
 
+    def __truediv__(self, other): # self / other
+        return self * other**-1
+
     def __rtruediv__(self, other): # other / self
         return other * self**-1
 
     def __repr__(self):
         return f'Value(data={self.data}, grad={self.grad})'
 
-import pprint as p
-a = Value(-3.0)
-b = Value(3.0)
-c = a + b
-d = 2 * c
-e = d / b
-
-x = Value(2)
-y = Value(4)
-z = x / y
-print(z._prev)
-
-# print('a', a._prev)
-# print('b', b._prev)
-# print('c', c._prev)
-# print('d', d._prev)
-# print('e', e._prev)
-
-# e.backward()
 
 
