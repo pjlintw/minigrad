@@ -59,6 +59,15 @@ class Value:
         
         return out
 
+    def relu(self):
+        out = Value(0 if self.data < 0 else self.data, 'ReLU')
+
+        def _backward():
+            self.grad += (out.data > 0) * out.grad
+        out._backward = _backward
+
+        return out
+        
     def backward(self):
         """Compute back-propagation."""
         # Build topological order
@@ -108,6 +117,4 @@ class Value:
 
     def __repr__(self):
         return f'Value(data={self.data}, grad={self.grad})'
-
-
 
