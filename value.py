@@ -24,6 +24,7 @@ class Value:
         self.grad = 0
         self._backward = lambda: None
         self._prev = set(_children) # be created once building operation
+        self._op = _op
 
     def __add__(self, other):
         other = other if isinstance(other, Value) else Value(other)
@@ -60,14 +61,14 @@ class Value:
         return out
 
     def relu(self):
-        out = Value(0 if self.data < 0 else self.data, 'ReLU')
+        out = Value(0 if self.data < 0 else self.data, (self,), 'ReLU')
 
         def _backward():
             self.grad += (out.data > 0) * out.grad
         out._backward = _backward
 
         return out
-        
+
     def backward(self):
         """Compute back-propagation."""
         # Build topological order
